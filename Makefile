@@ -46,10 +46,10 @@ notify:
 test: test-php test-front
 
 test-php: env
-	$(COMPOSE) build podryad-app
+	@$(COMPOSE) build -q podryad-app
 	$(COMPOSE) up -d --wait podryad-db
 	@test -f backend/vendor/autoload.php || $(PHP_RUN) composer install --no-interaction --no-progress
-	docker run --rm -u $(UID) --network podryad_default -v $(CURDIR)/backend:/var/www/backend \
+	@docker run --rm -u $(UID) --network podryad_default -v $(CURDIR)/backend:/var/www/backend \
 		-e DB_CONNECTION=pgsql -e DB_HOST=podryad-db \
 		-e DB_USERNAME=$(DB_USERNAME) -e DB_PASSWORD=$(DB_PASSWORD) \
 		-e DB_DATABASE=podryad_test podryad-php:dev php vendor/bin/phpunit --testdox --colors=always
