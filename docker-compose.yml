@@ -1,0 +1,122 @@
+name: podryad
+
+x-php: &php
+  image: podryad-php:dev
+  build:
+    context: .
+    dockerfile: docker/php/Dockerfile
+  env_file: .env
+  environment: &php-env
+    APP_ENV: local
+    APP_DEBUG: "false"
+    DB_CONNECTION: pgsql
+    DB_HOST: podryad-db
+    DB_PORT: 5432
+    REDIS_HOST: podryad-redis
+    REDIS_CLIENT: predis
+    QUEUE_CONNECTION: redis
+    CACHE_STORE: redis
+    SESSION_DRIVER: array
+    MAIL_MAILER: smtp
+    MAIL_HOST: podryad-mailpit
+    MAIL_PORT: 1025
+    MAIL_SCHEME: smtp
+    MAILPIT_URL: http://127.0.0.1:8313
+    LOG_CHANNEL: stack
+    LOG_STACK: single
+  volumes:
+    - ./backend:/var/www/backend
+  depends_on:
+    podryad-db:
+      condition: service_healthy
+    podryad-redis:
+      condition: service_started
+  restart: unless-stopped
+
+services:
+  podryad-db:
+    container_name: podryad-db
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init-test-db.sql:/docker-entrypoint-initdb.d/10-test-db.sql:ro
+    ports:
+      - "127.0.0.1:8312:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  podryad-redis:
+    container_name: podryad-redis
+    image: redis:7-alpine
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+
+  podryad-mailpit:
+    container_name: podryad-mailpit
+    image: axllent/mailpit:latest
+    environment:
+      MP_MAX_MESSAGES: 500
+    ports:
+      - "127.0.0.1:8313:8025"
+    restart: unless-stopped
+
+  podryad-app:
+    <<: *php
+    container_name: podryad-app
+    command: ["sh", "/var/www/backend/docker-entrypoint.sh"]
+    depends_on:
+      podryad-db:
+        condition: service_healthy
+      podryad-redis:
+        condition: service_started
+      podryad-mailpit:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/app-ready"]
+      interval: 3s
+      timeout: 3s
+      retries: 200
+
+  podryad-worker:
+    <<: *php
+    container_name: podryad-worker
+    command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3", "--timeout=120"]
+    depends_on:
+      podryad-app:
+        condition: service_healthy
+
+  podryad-scheduler:
+    <<: *php
+    container_name: podryad-scheduler
+    command: ["php", "artisan", "schedule:work"]
+    depends_on:
+      podryad-app:
+        condition: service_healthy
+
+  podryad-gateway:
+    container_name: podryad-gateway
+    image: podryad-gateway:dev
+    build:
+      context: .
+      dockerfile: docker/gateway/Dockerfile
+    volumes:
+      - ./backend/public:/var/www/backend/public:ro
+    ports:
+      - "127.0.0.1:8311:80"
+    depends_on:
+      podryad-app:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
