@@ -972,3 +972,9 @@ a.stat:hover {
     font-size: 24px;
   }
 }
+
+.chips .badge,
+.m-card .badge {
+  white-space: normal;
+  max-width: 100%;
+}

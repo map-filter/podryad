@@ -42,7 +42,8 @@ function cellText(i: ReadinessItem | undefined): string {
               <div>
                 <RouterLink v-if="linkWorkers" class="cell-title name" :to="{ name: 'worker', params: { id: w.id } }">{{ w.full_name }}</RouterLink>
                 <div v-else class="cell-title name">{{ w.full_name }}</div>
-                <div class="cell-sub">{{ w.position }}, ИИН {{ w.iin }}</div>
+                <div class="cell-sub truncate" :title="w.position">{{ w.position }}</div>
+                <div class="cell-sub mono">{{ w.iin }}</div>
               </div>
             </div>
           </td>
@@ -104,6 +105,10 @@ function cellText(i: ReadinessItem | undefined): string {
 </template>
 
 <style scoped>
+.matrix th.sticky-col {
+  max-width: 300px;
+}
+
 .matrix th,
 .matrix td {
   padding-left: 8px;
@@ -111,7 +116,14 @@ function cellText(i: ReadinessItem | undefined): string {
 }
 
 .matrix th {
-  font-size: 12px;
+  font-size: 11.5px;
+  white-space: normal;
+  line-height: 1.25;
+  min-width: 64px;
+  max-width: 96px;
+  vertical-align: bottom;
+  overflow-wrap: normal;
+  hyphens: auto;
 }
 
 .mcell {
@@ -133,12 +145,17 @@ function cellText(i: ReadinessItem | undefined): string {
 
 .name {
   display: block;
-  min-width: 150px;
   text-decoration: none;
   color: var(--c-text);
 }
 
+.sticky-col .person {
+  max-width: 280px;
+}
+
 .sticky-col {
+  min-width: 220px;
+  max-width: 280px;
   position: sticky;
   left: 0;
   background: var(--c-surface);

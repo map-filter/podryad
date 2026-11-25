@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('config', [AuthController::class, 'config']);
 Route::post('auth/login', [AuthController::class, 'login']);
 
-Route::middleware(['token.query', 'auth:sanctum'])->group(function () {
+Route::middleware('auth:sanctum')->group(function () {
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('me', [AuthController::class, 'me']);
     Route::get('workers/{worker}/photo', [WorkerController::class, 'photo']);

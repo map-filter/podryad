@@ -216,9 +216,11 @@ onMounted(load)
 
 .people li {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--c-border);
   min-width: 0;
 }
@@ -237,7 +239,8 @@ onMounted(load)
   flex-wrap: wrap;
   gap: 4px 8px;
   align-items: center;
-  padding-left: 44px;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .reason {

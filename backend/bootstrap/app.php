@@ -13,6 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->api(prepend: [\App\Http\Middleware\QueryTokenToHeader::class]);
+        $middleware->redirectGuestsTo('/login');
         $middleware->alias([
             'contractor' => \App\Http\Middleware\EnsureContractor::class,
             'customer' => \App\Http\Middleware\EnsureCustomer::class,

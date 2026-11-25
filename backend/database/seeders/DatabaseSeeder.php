@@ -61,6 +61,9 @@ class DatabaseSeeder extends Seeder
     {
         mt_srand(2026);
         $this->today = ReadinessReport::today();
+        foreach (['scans', 'photos'] as $dir) {
+            \Illuminate\Support\Facades\Storage::disk('local')->deleteDirectory($dir);
+        }
 
         DB::transaction(function () {
             $org = Organization::create([
