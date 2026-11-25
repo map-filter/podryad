@@ -1,0 +1,359 @@
+openapi: 3.0.3
+info:
+  title: Кабинет допуска подрядчика, API
+  version: 0.1.0
+  description: |
+    API кабинета: работники и документы, светофор готовности, профили требований заказчиков,
+    заявки на допуск с подписью ЭЦП, выгрузки и кабинет заказчика.
+    Авторизация: `POST /api/auth/login` возвращает токен, дальше заголовок `Authorization: Bearer <token>`.
+    Для ссылок на файлы (фото, сканы) токен можно передать параметром `?token=`.
+servers:
+  - url: /api
+security:
+  - bearer: []
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+  schemas:
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties: { type: array, items: { type: string } }
+    ReadinessItem:
+      type: object
+      properties:
+        document_type_id: { type: integer }
+        code: { type: string }
+        name: { type: string }
+        short_name: { type: string }
+        min_group: { type: integer, nullable: true }
+        document_id: { type: integer, nullable: true }
+        number: { type: string, nullable: true }
+        valid_until: { type: string, format: date, nullable: true }
+        group_level: { type: integer, nullable: true }
+        days_left: { type: integer, nullable: true }
+        state: { type: string, enum: [ok, expiring, expires_during, expired, missing, low_group] }
+        message: { type: string }
+    Readiness:
+      type: object
+      properties:
+        status: { type: string, enum: [ready, expiring, not_ready] }
+        days_left: { type: integer, nullable: true, description: Минимальный остаток дней по набору }
+        threshold: { type: integer, nullable: true, description: Сработавший порог 30/14/7 }
+        problems: { type: array, items: { type: string } }
+        warnings: { type: array, items: { type: string } }
+        items: { type: array, items: { $ref: '#/components/schemas/ReadinessItem' } }
+    WorkerInput:
+      type: object
+      required: [last_name, first_name, iin, position]
+      properties:
+        last_name: { type: string }
+        first_name: { type: string }
+        middle_name: { type: string }
+        iin: { type: string, pattern: '^\d{12}$', description: Проверяется контрольная сумма и дата рождения }
+        position: { type: string }
+        grade: { type: integer, minimum: 1, maximum: 8 }
+        site: { type: string }
+        phone: { type: string }
+        hired_at: { type: string, format: date }
+        is_active: { type: boolean }
+    Worker:
+      allOf:
+        - $ref: '#/components/schemas/WorkerInput'
+        - type: object
+          properties:
+            id: { type: integer }
+            full_name: { type: string }
+            birth_date: { type: string, format: date }
+            has_photo: { type: boolean }
+            readiness: { $ref: '#/components/schemas/Readiness' }
+    Document:
+      type: object
+      properties:
+        id: { type: integer }
+        document_type_id: { type: integer }
+        type_name: { type: string }
+        number: { type: string }
+        issued_at: { type: string, format: date }
+        valid_until: { type: string, format: date, nullable: true }
+        issuer: { type: string }
+        group_level: { type: integer, nullable: true }
+        has_scan: { type: boolean }
+        state: { type: string, enum: [valid, unlimited, expiring, expired] }
+        days_left: { type: integer, nullable: true }
+    Request:
+      type: object
+      properties:
+        id: { type: integer }
+        number: { type: string, example: ДП-2026-001 }
+        status: { type: string, enum: [draft, submitted, approved, remarks] }
+        work_type: { type: string }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        signed_at: { type: string, format: date-time, nullable: true }
+        signature_valid: { type: boolean }
+        readiness:
+          type: object
+          properties:
+            status: { type: string }
+            counts: { type: object, additionalProperties: { type: integer } }
+            on: { type: string, format: date }
+        workers:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Worker'
+              - type: object
+                properties:
+                  customer_decision: { type: string, nullable: true, enum: [ok, remark] }
+                  customer_comment: { type: string, nullable: true }
+paths:
+  /config:
+    get:
+      tags: [Вход]
+      security: []
+      summary: Режим подписи и ссылки окружения
+      responses: { '200': { description: OK } }
+  /auth/login:
+    post:
+      tags: [Вход]
+      security: []
+      summary: Вход по почте и паролю
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, example: head@ertis.test }
+                password: { type: string, example: portal2026 }
+      responses:
+        '200': { description: Токен и пользователь }
+        '422': { description: Неверная почта или пароль, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /auth/logout:
+    post: { tags: [Вход], summary: Выход, responses: { '200': { description: OK } } }
+  /me:
+    get: { tags: [Вход], summary: Пользователь, организация или заказчик, responses: { '200': { description: OK } } }
+  /dashboard:
+    get:
+      tags: [Сводка]
+      summary: Кто может выйти завтра, что истекает и просрочено
+      parameters:
+        - { name: date, in: query, schema: { type: string, format: date }, description: По умолчанию завтра }
+        - { name: profile_id, in: query, schema: { type: integer }, description: Проверка по профилю вместо базовых документов }
+      responses: { '200': { description: OK } }
+  /workers:
+    get:
+      tags: [Работники]
+      summary: Список со светофором по базовым документам
+      parameters:
+        - { name: search, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string, enum: [ready, expiring, not_ready] } }
+        - { name: site, in: query, schema: { type: string } }
+        - { name: position, in: query, schema: { type: string } }
+        - { name: active, in: query, schema: { type: string, enum: ['1', '0', all] } }
+      responses: { '200': { description: OK } }
+    post:
+      tags: [Работники]
+      summary: Добавить работника
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/WorkerInput' } } } }
+      responses:
+        '201': { description: Карточка, content: { application/json: { schema: { $ref: '#/components/schemas/Worker' } } } }
+        '422': { description: Ошибка, например ИИН не прошёл проверку }
+  /workers/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get: { tags: [Работники], summary: Карточка с документами и готовностью сегодня и завтра, responses: { '200': { description: OK } } }
+    put:
+      tags: [Работники]
+      summary: Изменить
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/WorkerInput' } } } }
+      responses: { '200': { description: OK } }
+    delete: { tags: [Работники], summary: В архив (повторно для архивного удаляет), responses: { '200': { description: OK } } }
+  /workers/{id}/photo:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get: { tags: [Работники], summary: Фото, responses: { '200': { description: Изображение } } }
+    post:
+      tags: [Работники]
+      summary: Загрузить фото
+      requestBody: { content: { multipart/form-data: { schema: { type: object, properties: { photo: { type: string, format: binary } } } } } }
+      responses: { '200': { description: OK } }
+  /workers/{id}/documents:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      tags: [Документы]
+      summary: Добавить документ со сканом
+      description: Если срок не указан, он считается от даты выдачи по справочнику. Для ЭБ нужна группа 1-5.
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [document_type_id]
+              properties:
+                document_type_id: { type: integer }
+                number: { type: string }
+                issued_at: { type: string, format: date }
+                valid_until: { type: string, format: date }
+                issuer: { type: string }
+                group_level: { type: integer }
+                scan: { type: string, format: binary }
+      responses: { '201': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Document' } } } } }
+  /documents/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post: { tags: [Документы], summary: Изменить документ (multipart, как при создании, плюс remove_scan), responses: { '200': { description: OK } } }
+    delete: { tags: [Документы], summary: Удалить, responses: { '200': { description: OK } } }
+  /documents/{id}/scan:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get: { tags: [Документы], summary: Скан (подрядчик или заказчик по поданной заявке), responses: { '200': { description: Файл } } }
+  /document-types:
+    get: { tags: [Справочник], summary: Типы документов со сроками, responses: { '200': { description: OK } } }
+    post: { tags: [Справочник], summary: Новый тип, responses: { '201': { description: OK } } }
+  /document-types/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    put: { tags: [Справочник], summary: Изменить, responses: { '200': { description: OK } } }
+    delete: { tags: [Справочник], summary: Удалить неиспользуемый, responses: { '200': { description: OK }, '409': { description: Используется } } }
+  /customers:
+    get: { tags: [Объекты], summary: Заказчики с объектами, responses: { '200': { description: OK } } }
+    post: { tags: [Объекты], summary: Новый заказчик, responses: { '201': { description: OK } } }
+  /facilities:
+    post: { tags: [Объекты], summary: Новый объект, responses: { '201': { description: OK } } }
+  /profiles:
+    get: { tags: [Профили], summary: Профили требований с готовностью на завтра, responses: { '200': { description: OK } } }
+    post:
+      tags: [Профили]
+      summary: Новый профиль
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                work_type: { type: string }
+                customer_id: { type: integer }
+                items:
+                  type: array
+                  items: { type: object, properties: { document_type_id: { type: integer }, min_group: { type: integer, nullable: true } } }
+      responses: { '201': { description: OK } }
+  /profiles/{id}/readiness:
+    parameters: [{ $ref: '#/components/parameters/id' }, { name: date, in: query, schema: { type: string, format: date } }]
+    get: { tags: [Профили], summary: Готовность всех работников по профилю на дату, responses: { '200': { description: OK } } }
+  /requests:
+    get: { tags: [Заявки], summary: Заявки с готовностью и состоянием подписи, responses: { '200': { description: OK } } }
+    post:
+      tags: [Заявки]
+      summary: Новая заявка (черновик)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customer_id, requirement_profile_id, start_date, end_date]
+              properties:
+                customer_id: { type: integer }
+                facility_id: { type: integer }
+                requirement_profile_id: { type: integer }
+                work_type: { type: string }
+                start_date: { type: string, format: date }
+                end_date: { type: string, format: date }
+                worker_ids: { type: array, items: { type: integer } }
+      responses: { '201': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Request' } } } } }
+  /requests/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get: { tags: [Заявки], summary: Заявка с матрицей готовности, responses: { '200': { description: OK } } }
+    put: { tags: [Заявки], summary: Изменить черновик или заявку с замечаниями, responses: { '200': { description: OK }, '409': { description: Уже подана } } }
+    delete: { tags: [Заявки], summary: Удалить черновик, responses: { '200': { description: OK } } }
+  /requests/{id}/workers:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      tags: [Заявки]
+      summary: Добавить и убрать работников
+      requestBody: { content: { application/json: { schema: { type: object, properties: { add: { type: array, items: { type: integer } }, remove: { type: array, items: { type: integer } } } } } } }
+      responses: { '200': { description: OK } }
+  /requests/{id}/sign-data:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get:
+      tags: [Подпись]
+      summary: Канонический JSON списка для подписи (base64) и его SHA-256
+      responses: { '200': { description: OK }, '409': { description: Есть неготовые работники } }
+  /requests/{id}/sign:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      tags: [Подпись]
+      summary: Сохранить CMS-подпись списка
+      description: CMS от NCALayer (kz.gov.pki.knca.basics, format cms, attached) или заглушка в режиме эмуляции.
+      requestBody: { content: { application/json: { schema: { type: object, properties: { signature: { type: string, description: base64 CMS } } } } } }
+      responses: { '200': { description: OK }, '422': { description: Подпись не подходит к данным } }
+  /sign/emulate:
+    post:
+      tags: [Подпись]
+      summary: Эмулированная подпись (только при SIGN_MODE=emulate)
+      requestBody: { content: { application/json: { schema: { type: object, properties: { data: { type: string, description: base64 } } } } } }
+      responses: { '200': { description: OK } }
+  /requests/{id}/submit:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post: { tags: [Заявки], summary: Подать заказчику (нужна действительная подпись), responses: { '200': { description: OK }, '409': { description: Нет подписи или список менялся } } }
+  /requests/{id}/package:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get: { tags: [Выгрузки], summary: Пакет допуска ZIP (PDF-список, xlsx на пропуск, подпись, сканы по папкам), responses: { '200': { description: application/zip } } }
+  /requests/{id}/summary.pdf:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get: { tags: [Выгрузки], summary: Сводный PDF-список, responses: { '200': { description: application/pdf } } }
+  /requests/{id}/pass-list:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get: { tags: [Выгрузки], summary: Список на пропуск xlsx, responses: { '200': { description: xlsx } } }
+  /exports/registry:
+    get: { tags: [Выгрузки], summary: Реестр сроков документов xlsx, responses: { '200': { description: xlsx } } }
+  /import/template:
+    get: { tags: [Импорт], summary: Шаблон Excel, responses: { '200': { description: xlsx } } }
+  /import:
+    post:
+      tags: [Импорт]
+      summary: Импорт работников и документов из xlsx
+      requestBody: { content: { multipart/form-data: { schema: { type: object, properties: { file: { type: string, format: binary }, dry_run: { type: string, enum: ['1', '0'] } } } } } }
+      responses: { '200': { description: Итог и ошибки по строкам } }
+  /notifications:
+    get: { tags: [Уведомления], summary: Журнал уведомлений, parameters: [{ name: channel, in: query, schema: { type: string, enum: [email, telegram, log] } }], responses: { '200': { description: OK } } }
+  /notifications/run:
+    post: { tags: [Уведомления], summary: Проверить сроки сейчас (то же, что ежедневная задача), responses: { '200': { description: OK } } }
+  /settings:
+    get: { tags: [Настройки], summary: Организация, пользователи, режимы, responses: { '200': { description: OK } } }
+    put: { tags: [Настройки], summary: Сохранить организацию и уведомления (руководитель), responses: { '200': { description: OK } } }
+  /customer/requests:
+    get: { tags: [Заказчик], summary: Поданные заказчику заявки, responses: { '200': { description: OK } } }
+  /customer/requests/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get: { tags: [Заказчик], summary: Заявка с документами, responses: { '200': { description: OK } } }
+  /customer/requests/{id}/decision:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      tags: [Заказчик]
+      summary: Допустить или вернуть с замечаниями
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [approved, remarks] }
+                comment: { type: string, description: Обязателен при remarks }
+                workers:
+                  type: array
+                  items: { type: object, properties: { id: { type: integer }, decision: { type: string, enum: [ok, remark] }, comment: { type: string } } }
+      responses: { '200': { description: OK } }
+  /customer/requests/{id}/package:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    get: { tags: [Заказчик], summary: Пакет допуска ZIP, responses: { '200': { description: application/zip } } }

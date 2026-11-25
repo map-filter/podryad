@@ -1,16 +1,16 @@
 :root {
-  --c-bg: #f4f6f6;
+  --c-bg: #f3f5f8;
   --c-surface: #ffffff;
-  --c-surface-2: #f8faf9;
-  --c-border: #dfe5e4;
-  --c-border-strong: #c6d0ce;
-  --c-text: #1c2b2a;
-  --c-text-2: #4d5e5c;
-  --c-muted: #7a8a88;
-  --c-accent: #0f5c5c;
-  --c-accent-hover: #0b4a4a;
-  --c-accent-soft: #e3f0ef;
-  --c-accent-text: #0d5050;
+  --c-surface-2: #f7f9fb;
+  --c-border: #dde3ea;
+  --c-border-strong: #c4ced9;
+  --c-text: #1b2632;
+  --c-text-2: #4a5867;
+  --c-muted: #6f7d8c;
+  --c-accent: #1f4e79;
+  --c-accent-hover: #173d60;
+  --c-accent-soft: #e4edf6;
+  --c-accent-text: #1b4670;
   --c-info: #245f9e;
   --c-info-soft: #e6eef8;
   --c-success: #23733f;
@@ -19,11 +19,13 @@
   --c-warning-soft: #fdf1d8;
   --c-danger: #b2302b;
   --c-danger-soft: #fbe7e5;
-  --c-neutral-soft: #edf0ef;
+  --c-neutral-soft: #edf0f4;
+  --c-orange: #b6470e;
+  --c-orange-soft: #fde7da;
   --radius: 10px;
   --radius-sm: 7px;
-  --shadow: 0 1px 2px rgba(16, 40, 38, 0.06), 0 1px 1px rgba(16, 40, 38, 0.04);
-  --shadow-lg: 0 12px 40px rgba(16, 40, 38, 0.18);
+  --shadow: 0 1px 2px rgba(16, 30, 48, 0.06), 0 1px 1px rgba(16, 30, 48, 0.04);
+  --shadow-lg: 0 12px 40px rgba(16, 30, 48, 0.18);
   --sidebar-w: 236px;
   --header-h: 60px;
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -508,7 +510,7 @@ textarea {
 }
 
 .table tbody tr:hover td {
-  background: #fafcfb;
+  background: #f8fafc;
 }
 
 .table .num {
@@ -592,6 +594,11 @@ textarea {
 .tone-danger {
   background: var(--c-danger-soft);
   color: var(--c-danger);
+}
+
+.tone-orange {
+  background: var(--c-orange-soft);
+  color: var(--c-orange);
 }
 
 .tone-accent {
@@ -693,7 +700,7 @@ textarea {
   display: block;
   font-family: var(--mono);
   font-size: 13px;
-  background: #f1f4f3;
+  background: #f1f4f8;
   border: 1px solid var(--c-border);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
@@ -810,5 +817,158 @@ textarea {
 
   .kv dd {
     margin-bottom: 8px;
+  }
+}
+
+.alert.tone-orange {
+  border-color: #f3c3a6;
+}
+
+.dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.dot.tone-success {
+  background: var(--c-success);
+}
+
+.dot.tone-warning {
+  background: #d39a14;
+}
+
+.dot.tone-orange {
+  background: #e06c26;
+}
+
+.dot.tone-danger {
+  background: var(--c-danger);
+}
+
+.dot.tone-muted {
+  background: #b5bec8;
+}
+
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.stat {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.stat .stat-label {
+  font-size: 13px;
+  color: var(--c-text-2);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.stat .stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat .stat-sub {
+  font-size: 12.5px;
+  color: var(--c-muted);
+}
+
+a.stat:hover {
+  border-color: var(--c-border-strong);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--c-border-strong);
+  background: var(--c-surface);
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--c-text-2);
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.chip.active {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: #fff;
+}
+
+.chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+  background: var(--c-accent-soft);
+  color: var(--c-accent-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.person > div {
+  min-width: 0;
+}
+
+.help-note {
+  font-size: 13px;
+  color: var(--c-text-2);
+  background: var(--c-accent-soft);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+@media (max-width: 1100px) {
+  .stat-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .stat .stat-value {
+    font-size: 24px;
   }
 }

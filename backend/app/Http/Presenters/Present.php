@@ -241,6 +241,7 @@ final class Present
         foreach ($res['items'] as &$item) {
             $doc = $item['document_id'] ? ($docs[$item['document_id']] ?? null) : null;
             $item['has_scan'] = (bool) $doc?->scan_path;
+            $item['scan_mime'] = $doc?->scan_mime;
         }
 
         return $res;
